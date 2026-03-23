@@ -157,6 +157,7 @@ export default function App() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -246,62 +247,96 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      <div className="flex h-screen bg-slate-50 overflow-hidden font-sans relative">
+        {/* Mobile Overlay */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+            />
+          )}
+        </AnimatePresence>
+
         {/* Sidebar */}
-        <div className="w-20 md:w-64 bg-white border-r border-slate-200 flex flex-col">
-          <div className="p-4 border-bottom flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-              {user.displayName?.[0] || user.email?.[0]}
+        <div className={`
+          fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out
+          md:relative md:translate-x-0 md:w-64
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-100">
+                {user.displayName?.[0] || user.email?.[0]}
+              </div>
+              <div className="overflow-hidden">
+                <p className="font-semibold truncate text-slate-800">{user.displayName || 'User'}</p>
+                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+              </div>
             </div>
-            <div className="hidden md:block overflow-hidden">
-              <p className="font-semibold truncate">{user.displayName || 'User'}</p>
-              <p className="text-xs text-slate-500 truncate">{user.email}</p>
-            </div>
+            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-slate-400 hover:text-slate-600">
+              <X size={20} />
+            </button>
           </div>
 
-          <nav className="flex-1 p-2 space-y-1">
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
             <SidebarItem 
               icon={<Globe size={20} />} 
               label="Global Chat" 
               active={view === 'global'} 
-              onClick={() => { setView('global'); setSelectedUser(null); }} 
+              onClick={() => { setView('global'); setSelectedUser(null); setIsSidebarOpen(false); }} 
             />
             <SidebarItem 
               icon={<Users size={20} />} 
               label="Connections" 
               active={view === 'connections'} 
-              onClick={() => { setView('connections'); setSelectedUser(null); }} 
+              onClick={() => { setView('connections'); setSelectedUser(null); setIsSidebarOpen(false); }} 
             />
             
-            <div className="mt-6 mb-2 px-3 hidden md:block">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Private Chats</p>
+            <div className="mt-8 mb-2 px-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Private Chats</p>
             </div>
             
-            {friends.map(friend => (
-              <SidebarItem 
-                key={friend.uid}
-                icon={<div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">{friend.displayName[0]}</div>}
-                label={friend.displayName}
-                active={view === 'private' && selectedUser?.uid === friend.uid}
-                onClick={() => { setView('private'); setSelectedUser(friend); }}
-              />
-            ))}
+            {friends.length === 0 ? (
+              <p className="px-3 py-4 text-xs text-slate-400 italic">No friends yet. Head to Connections to find people!</p>
+            ) : (
+              friends.map(friend => (
+                <SidebarItem 
+                  key={friend.uid}
+                  icon={<div className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold">{friend.displayName[0]}</div>}
+                  label={friend.displayName}
+                  active={view === 'private' && selectedUser?.uid === friend.uid}
+                  onClick={() => { setView('private'); setSelectedUser(friend); setIsSidebarOpen(false); }}
+                />
+              ))
+            )}
           </nav>
 
-          <button 
-            onClick={() => signOut(auth)}
-            className="p-4 flex items-center gap-3 text-slate-600 hover:bg-slate-50 transition w-full border-t border-slate-100"
-          >
-            <LogOut size={20} />
-            <span className="hidden md:block font-medium">Logout</span>
-          </button>
+          <div className="p-4 border-t border-slate-100">
+            <button 
+              onClick={() => signOut(auth)}
+              className="flex items-center gap-3 p-3 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition w-full font-medium"
+            >
+              <LogOut size={20} />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col relative">
+        <main className="flex-1 flex flex-col relative min-w-0">
           <AnimatePresence mode="wait">
             {view === 'global' && (
-              <ChatArea key="global" title="Global Chat" type="global" user={user} />
+              <ChatArea 
+                key="global" 
+                title="Global Chat" 
+                type="global" 
+                user={user} 
+                onMenuClick={() => setIsSidebarOpen(true)}
+              />
             )}
             {view === 'private' && selectedUser && (
               <ChatArea 
@@ -310,6 +345,7 @@ export default function App() {
                 type="private" 
                 user={user} 
                 targetUser={selectedUser} 
+                onMenuClick={() => setIsSidebarOpen(true)}
               />
             )}
             {view === 'connections' && (
@@ -318,12 +354,22 @@ export default function App() {
                 user={user} 
                 users={users} 
                 connections={connections} 
+                onMenuClick={() => setIsSidebarOpen(true)}
               />
             )}
             {view === 'private' && !selectedUser && (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                <MessageSquare size={48} strokeWidth={1} className="mb-4" />
-                <p>Select a friend to start chatting</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-6 text-center">
+                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm mb-6">
+                  <MessageSquare size={40} strokeWidth={1.5} className="text-slate-300" />
+                </div>
+                <h3 className="text-slate-600 font-semibold mb-2">No Chat Selected</h3>
+                <p className="text-sm max-w-xs">Select a friend from the sidebar or start a conversation in the global chat.</p>
+                <button 
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="mt-6 md:hidden px-6 py-2 bg-indigo-600 text-white rounded-full text-sm font-bold shadow-lg shadow-indigo-100"
+                >
+                  Open Sidebar
+                </button>
               </div>
             )}
           </AnimatePresence>
@@ -466,7 +512,7 @@ function AuthScreen() {
   );
 }
 
-function ChatArea({ title, type, user, targetUser }: { title: string, type: 'global' | 'private', user: FirebaseUser, targetUser?: UserProfile, key?: string }) {
+function ChatArea({ title, type, user, targetUser, onMenuClick }: { title: string, type: 'global' | 'private', user: FirebaseUser, targetUser?: UserProfile, key?: string, onMenuClick?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -522,30 +568,54 @@ function ChatArea({ title, type, user, targetUser }: { title: string, type: 'glo
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex-1 flex flex-col h-full"
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex-1 flex flex-col h-full bg-white"
     >
-      <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-        {type === 'global' && <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full font-medium">Public</span>}
+      <div className="p-4 border-b border-slate-200 bg-white flex items-center gap-3 sticky top-0 z-10">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-50 rounded-lg transition"
+        >
+          <div className="w-5 h-5 flex flex-col justify-center gap-1">
+            <div className="h-0.5 w-full bg-current rounded-full" />
+            <div className="h-0.5 w-full bg-current rounded-full" />
+            <div className="h-0.5 w-full bg-current rounded-full" />
+          </div>
+        </button>
+        <div className="flex-1 flex items-center gap-3 overflow-hidden">
+          {type === 'private' && (
+            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shrink-0">
+              {title[0]}
+            </div>
+          )}
+          <h2 className="text-base font-bold text-slate-800 truncate">{title}</h2>
+          {type === 'global' && <span className="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Public</span>}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
+            <p className="text-sm italic">No messages yet. Say hello!</p>
+          </div>
+        )}
         {messages.map((msg) => (
           <div 
             key={msg.id} 
             className={`flex flex-col ${msg.senderId === user.uid ? 'items-end' : 'items-start'}`}
           >
-            <div className={`max-w-[80%] p-3 rounded-2xl ${
+            <div className={`max-w-[85%] md:max-w-[70%] p-3 rounded-2xl shadow-sm ${
               msg.senderId === user.uid 
                 ? 'bg-indigo-600 text-white rounded-tr-none' 
                 : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
             }`}>
               {type === 'global' && msg.senderId !== user.uid && (
-                <p className="text-[10px] font-bold mb-1 opacity-70">{msg.senderName}</p>
+                <p className={`text-[10px] font-bold mb-1 ${msg.senderId === user.uid ? 'text-indigo-200' : 'text-indigo-600'}`}>
+                  {msg.senderName}
+                </p>
               )}
-              <p className="text-sm leading-relaxed">{msg.text}</p>
+              <p className="text-sm leading-relaxed break-words">{msg.text}</p>
             </div>
             <span className="text-[10px] text-slate-400 mt-1 px-1">
               {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
@@ -555,26 +625,29 @@ function ChatArea({ title, type, user, targetUser }: { title: string, type: 'glo
         <div ref={scrollRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="p-4 bg-white border-t border-slate-200 flex gap-2">
-        <input 
-          type="text" 
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition"
-        />
-        <button 
-          type="submit"
-          className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100"
-        >
-          <Send size={20} />
-        </button>
-      </form>
+      <div className="p-4 bg-white border-t border-slate-200">
+        <form onSubmit={sendMessage} className="flex gap-2 max-w-4xl mx-auto">
+          <input 
+            type="text" 
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition text-sm"
+          />
+          <button 
+            type="submit"
+            disabled={!newMessage.trim()}
+            className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:shadow-none"
+          >
+            <Send size={20} />
+          </button>
+        </form>
+      </div>
     </motion.div>
   );
 }
 
-function ConnectionsArea({ user, users, connections }: { user: FirebaseUser, users: UserProfile[], connections: Connection[], key?: string }) {
+function ConnectionsArea({ user, users, connections, onMenuClick }: { user: FirebaseUser, users: UserProfile[], connections: Connection[], key?: string, onMenuClick?: () => void }) {
   const [search, setSearch] = useState('');
 
   const sendRequest = async (targetId: string) => {
@@ -613,115 +686,131 @@ function ConnectionsArea({ user, users, connections }: { user: FirebaseUser, use
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex-1 p-6 overflow-y-auto"
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex-1 flex flex-col h-full bg-slate-50"
     >
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Pending Requests */}
-        {pendingRequests.length > 0 && (
-          <section>
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Pending Requests</h3>
-            <div className="grid gap-3">
-              {pendingRequests.map(req => {
-                const sender = users.find(u => u.uid === req.senderId);
-                return (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                        {sender?.displayName?.[0] || '?'}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{sender?.displayName || 'Unknown'}</p>
-                        <p className="text-xs text-slate-500">wants to connect</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => updateRequest(req.id, 'accepted')}
-                        className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition"
-                      >
-                        <Check size={18} />
-                      </button>
-                      <button 
-                        onClick={() => updateRequest(req.id, 'rejected')}
-                        className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Discover Users */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Discover People</h3>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search users..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition"
-              />
-            </div>
+      <div className="p-4 border-b border-slate-200 bg-white flex items-center gap-3 sticky top-0 z-10">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-50 rounded-lg transition"
+        >
+          <div className="w-5 h-5 flex flex-col justify-center gap-1">
+            <div className="h-0.5 w-full bg-current rounded-full" />
+            <div className="h-0.5 w-full bg-current rounded-full" />
+            <div className="h-0.5 w-full bg-current rounded-full" />
           </div>
-          
-          <div className="grid gap-3">
-            {filteredUsers.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400">
-                <p>No new people found</p>
+        </button>
+        <h2 className="text-base font-bold text-slate-800">Connections</h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-2xl mx-auto space-y-8">
+          {/* Pending Requests */}
+          {pendingRequests.length > 0 && (
+            <section>
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Pending Requests</h3>
+              <div className="grid gap-3">
+                {pendingRequests.map(req => {
+                  const sender = users.find(u => u.uid === req.senderId);
+                  return (
+                    <div key={req.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                          {sender?.displayName?.[0] || '?'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{sender?.displayName || 'Unknown'}</p>
+                          <p className="text-[10px] text-slate-400 font-medium">wants to connect</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => updateRequest(req.id, 'accepted')}
+                          className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition shadow-md shadow-emerald-100"
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button 
+                          onClick={() => updateRequest(req.id, 'rejected')}
+                          className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 hover:text-slate-600 transition"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              filteredUsers.map(u => (
-                <div key={u.uid} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
-                      {u.displayName[0]}
-                    </div>
-                    <p className="font-semibold">{u.displayName}</p>
-                  </div>
-                  <button 
-                    onClick={() => sendRequest(u.uid)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition"
-                  >
-                    <UserPlus size={16} />
-                    <span>Connect</span>
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+            </section>
+          )}
 
-        {/* Sent Requests */}
-        {sentRequests.length > 0 && (
+          {/* Discover Users */}
           <section>
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Sent Requests</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Discover People</h3>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Search users..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-sm"
+                />
+              </div>
+            </div>
+            
             <div className="grid gap-3">
-              {sentRequests.map(req => {
-                const receiver = users.find(u => u.uid === req.receiverId);
-                return (
-                  <div key={req.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between opacity-70">
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400">
+                  <p className="text-sm">No new people found</p>
+                </div>
+              ) : (
+                filteredUsers.map(u => (
+                  <div key={u.uid} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm hover:border-indigo-100 transition">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 font-bold">
-                        {receiver?.displayName?.[0] || '?'}
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 font-bold border border-slate-100">
+                        {u.displayName[0]}
                       </div>
-                      <p className="font-semibold">{receiver?.displayName || 'Unknown'}</p>
+                      <p className="text-sm font-semibold text-slate-800">{u.displayName}</p>
                     </div>
-                    <span className="text-xs font-medium text-slate-400 italic">Pending...</span>
+                    <button 
+                      onClick={() => sendRequest(u.uid)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100"
+                    >
+                      <UserPlus size={14} />
+                      <span className="hidden xs:inline">Connect</span>
+                    </button>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
           </section>
-        )}
+
+          {/* Sent Requests */}
+          {sentRequests.length > 0 && (
+            <section>
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Sent Requests</h3>
+              <div className="grid gap-3">
+                {sentRequests.map(req => {
+                  const receiver = users.find(u => u.uid === req.receiverId);
+                  return (
+                    <div key={req.id} className="bg-white/60 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-3 opacity-60">
+                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 font-bold">
+                          {receiver?.displayName?.[0] || '?'}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-600">{receiver?.displayName || 'Unknown'}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 italic bg-slate-50 px-2 py-1 rounded-full">Pending</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     </motion.div>
   );
