@@ -388,7 +388,7 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
       className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50'}`}
     >
       {icon}
-      <span className="hidden md:block font-medium">{label}</span>
+      <span className="font-medium">{label}</span>
     </button>
   );
 }
