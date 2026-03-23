@@ -1,0 +1,5 @@
+{
+  "name": "Global & Private Chat",
+  "description": "A real-time chat application with global rooms, private messaging, and connection requests.",
+  "requestFramePermissions": []
+}
