@@ -39,7 +39,7 @@ service cloud.firestore {
 
     function isValidConnection(data) {
       return data.senderId is string && data.receiverId is string &&
-             data.status in ['pending', 'accepted'] &&
+             data.status in ['pending', 'accepted', 'rejected'] &&
              data.timestamp is timestamp;
     }
 
@@ -71,7 +71,11 @@ service cloud.firestore {
     match /connections/{connectionId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.senderId && isValidConnection(request.resource.data);
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId) && isValidConnection(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId) && 
+                      isValidConnection(request.resource.data) &&
+                      request.resource.data.senderId == resource.data.senderId &&
+                      request.resource.data.receiverId == resource.data.receiverId &&
+                      request.resource.data.timestamp == resource.data.timestamp;
     }
 
     match /private_messages/{messageId} {
