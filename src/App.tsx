@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -155,7 +155,8 @@ export default function App() {
   const [view, setView] = useState<'global' | 'private' | 'connections'>('global');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const [sentConnections, setSentConnections] = useState<Connection[]>([]);
+  const [receivedConnections, setReceivedConnections] = useState<Connection[]>([]);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -211,22 +212,23 @@ export default function App() {
 
     const unsub1 = onSnapshot(q, (snapshot) => {
       const cList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Connection));
-      setConnections(prev => {
-        const other = prev.filter(c => c.receiverId !== user.uid);
-        return [...other, ...cList];
-      });
+      setSentConnections(cList);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'connections'));
 
     const unsub2 = onSnapshot(q2, (snapshot) => {
       const cList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Connection));
-      setConnections(prev => {
-        const other = prev.filter(c => c.senderId !== user.uid);
-        return [...other, ...cList];
-      });
+      setReceivedConnections(cList);
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'connections'));
 
     return () => { unsub1(); unsub2(); };
   }, [user]);
+
+  const connections = useMemo(() => {
+    const combined = [...sentConnections, ...receivedConnections];
+    const unique = new Map();
+    combined.forEach(c => unique.set(c.id, c));
+    return Array.from(unique.values());
+  }, [sentConnections, receivedConnections]);
 
   if (loading) {
     return (
