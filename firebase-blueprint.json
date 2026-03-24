@@ -46,9 +46,10 @@
         "senderId": { "type": "string" },
         "receiverId": { "type": "string" },
         "chatId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["text", "senderId", "receiverId", "chatId", "timestamp"]
+      "required": ["text", "senderId", "receiverId", "chatId", "participants", "timestamp"]
     }
   },
   "firestore": {

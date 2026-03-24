@@ -48,6 +48,9 @@ service cloud.firestore {
              data.senderId == request.auth.uid &&
              data.receiverId is string &&
              data.chatId is string &&
+             data.participants is list &&
+             data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
              data.timestamp is timestamp;
     }
 
@@ -72,7 +75,7 @@ service cloud.firestore {
     }
 
     match /private_messages/{messageId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
       allow create: if isAuthenticated() && isValidPrivateMessage(request.resource.data) && (request.auth.uid == request.resource.data.senderId || request.auth.uid == request.resource.data.receiverId);
     }
   }

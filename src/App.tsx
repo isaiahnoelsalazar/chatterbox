@@ -525,7 +525,11 @@ function ChatArea({ title, type, user, targetUser, onMenuClick }: { title: strin
       q = query(colRef, orderBy('timestamp', 'asc'));
     } else if (targetUser) {
       const chatId = getChatId(user.uid, targetUser.uid);
-      q = query(colRef, where('chatId', '==', chatId), orderBy('timestamp', 'asc'));
+      q = query(colRef, 
+        where('chatId', '==', chatId), 
+        where('participants', 'array-contains', user.uid),
+        orderBy('timestamp', 'asc')
+      );
     } else {
       return;
     }
@@ -557,6 +561,7 @@ function ChatArea({ title, type, user, targetUser, onMenuClick }: { title: strin
       if (type === 'private' && targetUser) {
         msgData.receiverId = targetUser.uid;
         msgData.chatId = getChatId(user.uid, targetUser.uid);
+        msgData.participants = [user.uid, targetUser.uid];
       }
 
       await addDoc(collection(db, type === 'global' ? 'global_messages' : 'private_messages'), msgData);
